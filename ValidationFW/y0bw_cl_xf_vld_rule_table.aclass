@@ -1,0 +1,525 @@
+class y0bw_cl_xf_vld_rule_table definition
+  public
+  final
+  create private .
+
+  public section.
+
+    types:
+*"* public components of class Y0BW_CL_XF_VLD_RULE_TABLE
+*"* do not include other source files here!!!
+      tt_head_data type hashed table of y0bw_xf_vld_v2 with unique key ruleid .
+    types:
+      ts_head_data type line of tt_head_data .
+    types:
+      tt_buffered_data type hashed table of y0bw_xf_vld_view with unique key ruleid stepid enum .
+    types:
+      ts_buffered_data type line of tt_buffered_data .
+    types:
+      begin of ts_buff_rules_by_obj,
+        infoobject          type rsd_iobjnm,
+        rbmodule            type /bic/oizappmod,
+        e_t_rule_table_head type tt_head_data,
+      end of ts_buff_rules_by_obj.
+    types: tt_buff_rules_by_obj type hashed table of ts_buff_rules_by_obj with unique key infoobject rbmodule.
+
+
+    methods get_table
+      exporting
+        !e_t_validations type tt_buffered_data .
+    methods get_ruledetails_by_id
+      importing
+        !ruleid           type y0bw_rule
+      exporting
+        !e_t_rule_details type tt_buffered_data .
+    methods get_rules_by_id
+      importing
+        !ruleid              type y0bw_rule
+      exporting
+        !e_s_rule_table_head type ts_head_data .
+    type-pools rsd .
+    methods get_derivation_rules_by_obj
+      importing
+        !infoobject          type rsd_iobjnm
+        !rbmodule            type /bic/oizappmod optional
+      exporting
+        !e_t_rule_table_head type tt_head_data .
+    methods get_filter_id_list
+      importing
+        !rbmodule            type /bic/oizappmod optional
+      exporting
+        !e_t_rule_table_head type tt_head_data .
+    methods get_rules_by_obj
+      importing
+        !infoobject          type rsd_iobjnm
+        !rbmodule            type /bic/oizappmod optional
+      exporting
+        !e_t_rule_table_head type tt_head_data .
+    methods get_rules_by_type
+      importing
+        !i_rule_type         type y0bi_vld_type
+        !rbmodule            type /bic/oizappmod optional
+      exporting
+        !e_t_rule_table_head type tt_head_data .
+    class-methods get_instance
+      returning
+        value(return) type ref to y0bw_cl_xf_vld_rule_table .
+protected section.
+*"* protected components of class Y0BW_CL_XF_VLD_RULE_TABLE
+*"* do not include other source files here!!!
+private section.
+
+  constants:
+*"* private components of class Y0BW_CL_XF_VLD_RULE_TABLE
+*"* do not include other source files here!!!
+    RULETABLE type c LENGTH 16 value 'Y0BW_XF_VLD_VIEW' ##NO_TEXT.
+  class-data INSTANCE type ref to Y0BW_CL_XF_VLD_RULE_TABLE .
+  data BUFFERED_DATA type TT_BUFFERED_DATA .
+  data BUFF_RULES_BY_OBJ type TT_BUFF_RULES_BY_OBJ .
+
+  methods LOAD_UNRESTRICTED .
+  methods CONSTRUCTOR .
+ENDCLASS.
+
+
+
+CLASS Y0BW_CL_XF_VLD_RULE_TABLE IMPLEMENTATION.
+
+
+method CONSTRUCTOR.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Standard Constructor Method
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        13.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+CALL FUNCTION 'Y0BC_WHEN_USED'.
+
+DATA: vld_table type REF TO Y0BW_CL_XF_VLD_RULE_TABLE.
+
+vld_table = Y0BW_CL_XF_VLD_RULE_TABLE=>get_instance( ).
+
+me->load_unrestricted( ).
+
+endmethod.
+
+
+method get_derivation_rules_by_obj.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  data: l_s_headline      type ts_head_data,
+        l_s_buffered_data like line of buffered_data,
+        l_v_rbmodule      type /bic/oizappmod.
+
+  if rbmodule is initial.
+    l_v_rbmodule = y0bw_if_vld_constants=>default_module.
+  else.
+    l_v_rbmodule = rbmodule.
+  endif.
+
+  loop at buffered_data into l_s_buffered_data
+    where vld_io = infoobject
+    and ( rbmodule = y0bw_if_vld_constants=>default_module or rbmodule = l_v_rbmodule )
+    and status = y0bw_if_vld_constants=>sign_true
+    and module_status = y0bw_if_vld_constants=>sign_true
+    and ( vld_rule_type = 5 )."or VLD_RULE_TYPE = 6 ).
+    move-corresponding l_s_buffered_data to l_s_headline.
+    insert l_s_headline into table e_t_rule_table_head.
+  endloop.
+
+  sort e_t_rule_table_head by ruleid ascending.
+  delete adjacent duplicates from e_t_rule_table_head.
+endmethod.
+
+
+method get_filter_id_list.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  data: l_s_headline type ts_head_data,
+        l_s_buffered_data like line of buffered_data,
+  l_v_rbmodule type /bic/oizappmod.
+
+  if rbmodule is initial.
+    l_v_rbmodule = y0bw_if_vld_constants=>default_module.
+  else.
+    l_v_rbmodule = rbmodule.
+  endif.
+
+  loop at buffered_data into l_s_buffered_data
+    where vld_rule_type = y0bw_if_vld_constants=>rule_type_filter
+    and ( rbmodule = y0bw_if_vld_constants=>default_module or rbmodule = l_v_rbmodule )
+    and status = y0bw_if_vld_constants=>sign_true
+    and module_status = y0bw_if_vld_constants=>sign_true.
+    move-corresponding l_s_buffered_data to l_s_headline.
+    insert l_s_headline into table e_t_rule_table_head.
+  endloop.
+  sort e_t_rule_table_head by ruleid ascending.
+  delete adjacent duplicates from e_t_rule_table_head.
+endmethod.
+
+
+method GET_INSTANCE.
+
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Unter Anwendung des Singleton Patterns gibt diese Methode
+*               eine Instanz dieser Klasse zurück.
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        13.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  IF instance IS NOT BOUND.
+    CREATE OBJECT instance.
+  ENDIF.
+
+  return = instance.
+
+
+endmethod.
+
+
+method GET_RULEDETAILS_BY_ID.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+DATA: l_s_headline type ts_head_data,
+      l_s_buffered_data LIKE LINE OF buffered_data.
+
+"READ TABLE buffered_data INTO l_s_buffered_data WITH TABLE KEY RULEID = RULEID STEPID = 1.
+LOOP AT buffered_data INTO l_s_buffered_data WHERE ruleid = ruleid.
+  INSERT l_s_buffered_data INTO TABLE E_T_RULE_DETAILS.
+  ENDLOOP.
+  SORT E_T_RULE_DETAILS BY STEPID ASCENDING.
+endmethod.
+
+
+method get_rules_by_id.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  data: l_s_headline type ts_head_data,
+        l_s_buffered_data like line of buffered_data.
+
+  "READ TABLE buffered_data INTO l_s_buffered_data WITH TABLE KEY RULEID = RULEID STEPID = 1.
+  loop at buffered_data into l_s_buffered_data where ruleid = ruleid and ( stepid = 1 or stepid = 0 ) and ( enum = 1 or enum eq 0 ).
+    move-corresponding l_s_buffered_data to e_s_rule_table_head.
+  endloop.
+endmethod.
+
+
+method get_rules_by_obj.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  data: l_s_headline      type ts_head_data,
+        l_s_buffered_data like line of buffered_data,
+        l_v_rbmodule      type /bic/oizappmod.
+
+  field-symbols: <fs_buff> type ts_buff_rules_by_obj.
+  data:          ls_buff   type ts_buff_rules_by_obj.
+
+  if rbmodule is initial.
+    l_v_rbmodule = y0bw_if_vld_constants=>default_module.
+  else.
+    l_v_rbmodule = rbmodule.
+  endif.
+
+  read table me->buff_rules_by_obj
+  assigning <fs_buff>
+  with table key infoobject = infoobject rbmodule = l_v_rbmodule.
+  if sy-subrc = 0.
+    e_t_rule_table_head = <fs_buff>-e_t_rule_table_head.
+    return.
+  endif.
+
+  loop at buffered_data into l_s_buffered_data
+    where vld_io = infoobject
+    and ( rbmodule = y0bw_if_vld_constants=>default_module or rbmodule = l_v_rbmodule )
+    and status = y0bw_if_vld_constants=>sign_true
+    and module_status = y0bw_if_vld_constants=>sign_true.
+    move-corresponding l_s_buffered_data to l_s_headline.
+    insert l_s_headline into table e_t_rule_table_head.
+  endloop.
+
+  sort e_t_rule_table_head by ruleid ascending.
+  delete adjacent duplicates from e_t_rule_table_head.
+
+  ls_buff-infoobject = infoobject.
+  ls_buff-rbmodule = l_v_rbmodule.
+  ls_buff-e_t_rule_table_head = e_t_rule_table_head.
+  insert ls_buff into table me->buff_rules_by_obj.
+endmethod.
+
+
+method get_rules_by_type.
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Get all rules for specific infoobject
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        17.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+*----------------------------------------------------------------------*
+
+  data: l_s_headline      type ts_head_data,
+        l_s_buffered_data like line of buffered_data,
+        l_v_rbmodule      type /bic/oizappmod.
+
+  if rbmodule is initial.
+    l_v_rbmodule = y0bw_if_vld_constants=>default_module.
+  else.
+    l_v_rbmodule = rbmodule.
+  endif.
+
+  loop at buffered_data into l_s_buffered_data
+    where vld_rule_type = i_rule_type
+    and ( rbmodule = y0bw_if_vld_constants=>default_module or rbmodule = l_v_rbmodule )
+    and status = y0bw_if_vld_constants=>sign_true
+    and module_status = y0bw_if_vld_constants=>sign_true.
+    move-corresponding l_s_buffered_data to l_s_headline.
+    insert l_s_headline into table e_t_rule_table_head.
+  endloop.
+
+  sort e_t_rule_table_head by ruleid ascending.
+  delete adjacent duplicates from e_t_rule_table_head.
+endmethod.
+
+
+method GET_TABLE.
+  e_t_validations = me->buffered_data.
+endmethod.
+
+
+method load_unrestricted.
+
+*----------------------------------------------------------------------*
+* Red Bull, Fuschl am See
+*----------------------------------------------------------------------*
+* Beschreibung: Load Status Information for all File ID's
+*
+* SAP-Prozess : ...
+*
+* Grund:        ( ) QM-Meldung  : ...
+*               (X) Projekt     : Validations
+*               ( ) Notkorrektur: ...
+*               ( ) andere      : ...
+*
+* Auftraggeber: Red Bull GmbH
+*
+* Verantwortlich / Test:
+*
+*-------------Aenderungsdokumentation----------------------------------*
+* Edition SAP-Rel    Datum        Bearbeiter
+*         Beschreibung
+*----------------------------------------------------------------------*
+* >001<   7.3        13.09.2012   Makarov Mikhail, CubeServ AG
+*         Methode initial angelegt und implementiert
+* >002<   7.3        07.12.2012   Makarov Mikhail, CubeServ AG
+*         Implement Join logic with ABAP because of
+*         Left Outer Join problematic with standard views
+*----------------------------------------------------------------------*
+
+  data: i_t_tmp_buffered_data type standard table of ts_buffered_data,
+        i_s_tmp_buffered_data like line of i_t_tmp_buffered_data.
+
+  select
+    h~ruleid
+  h~vld_io
+  h~rbmodule
+  h~vld_rule_type
+  h~messageclass
+  h~messageid
+  h~msg_type
+  h~status
+  h~lfnr
+  h~last_user
+  h~last_datum
+    "l~RULEID
+  l~stepid
+  l~infoobject
+  l~attribute
+  l~fuba
+    f~iobjnm
+    f~enum
+    f~seltp
+    f~sign
+    f~opt
+    f~low
+    f~high
+    f~hienm
+    s~status as module_status
+    into corresponding fields of table i_t_tmp_buffered_data
+    "INTO CORRESPONDING FIELDS OF TABLE BUFFERED_DATA
+    from
+    y0bw_xf_vld_head as h
+    left outer join y0bw_xf_vld_line as l on h~ruleid = l~ruleid
+    left outer join y0bw_xf_filter as f on h~ruleid = f~filter_name and f~filter_use = 'VLDUP'
+    inner join y0bw_xf_vld_mset as s on h~rbmodule = s~rbmodule.
+
+  loop at i_t_tmp_buffered_data into i_s_tmp_buffered_data.
+
+    insert i_s_tmp_buffered_data into table buffered_data.
+
+    "SELECT * FROM (Y0BW_IF_VLD_CONSTANTS=>RULETABLE) INTO table BUFFERED_DATA.
+  endloop.
+
+
+endmethod.
+ENDCLASS.
