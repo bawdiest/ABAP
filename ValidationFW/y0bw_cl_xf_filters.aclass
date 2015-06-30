@@ -1,0 +1,459 @@
+class Y0BW_CL_XF_FILTERS definition
+  public
+  create private .
+
+public section.
+
+  types:
+    TT_Y0BW_XF_FILTER type STANDARD TABLE OF Y0BW_XF_FILTER .
+  types:
+    begin of ty_range,
+      sign(1)   type c,
+      option(2) type c,
+      low(60)   type c,
+      high(60)  type c,
+    end of ty_range .
+  types:
+    TT_Y0BW_XF_PAR_VALS type STANDARD TABLE OF Y0BW_XF_PAR_VALS .
+  types:
+    tt_node type STANDARD TABLE OF RSSHNODENAME .
+  types:
+    tt_range type hashed table of ty_range with unique key sign option low high .
+  types:
+    BEGIN OF ts_filter_range,
+  iOBJNM type RSIOBJNM,
+  concatinated type boolean,
+  RANGE type tt_range,
+  END OF ts_filter_range .
+  types:
+    tt_filter_ranges type HASHED TABLE OF ts_filter_range WITH UNIQUE key IOBJNM concatinated .
+
+  class-methods GET_INSTANCE
+    returning
+      value(RETURN) type ref to Y0BW_CL_XF_FILTERS .
+  methods CHECK_RECORD
+    importing
+      !I_FILTER_USE type Y0XF_FILTER_USE
+      !I_FILTER_NAME type Y0XF_FILTER_NAME optional
+      !I_TRANS_FIELDNM type BOOLEAN default ABAP_FALSE
+    exporting
+      !E_RESULT type BOOLEAN
+    changing
+      !C_S_REC type ANY .
+  methods _EXPLODE_HIERARCHY
+    importing
+      !I_HIENM type RSHIENM
+      !I_IOBJNM type RSIOBJNM
+      !I_NODE type RSSHNODENAME_MAXLEN
+    exporting
+      !E_NODES type TT_NODE .
+  methods CHECK_RECTAB
+    importing
+      !I_FILTER_USE type Y0XF_FILTER_USE
+      !I_FILTER_NAME type Y0XF_FILTER_NAME optional
+      !I_RECTAB type Y0BW_CL_XF_VLD_GENERIC=>TT_RECORD_TABLE
+    exporting
+      !E_RESULT type BOOLEAN .
+  methods GET_FILTER_RANGES
+    importing
+      !I_FILTER_USE type Y0XF_FILTER_USE
+      !I_FILTER_NAME type Y0XF_FILTER_NAME
+      !I_EXPLODE_HIERARCHIES type BOOLEAN
+    exporting
+      value(E_TABLE) type TT_FILTER_RANGES .
+  methods GET_XF_FILTERS
+    importing
+      !I_FILTER_USE type Y0XF_FILTER_USE
+      !I_FILTER_NAME type Y0XF_FILTER_NAME optional
+      !I_EXPLODE_HIERARCHIES type BOOLEAN optional
+    exporting
+      value(E_TABLE) type TT_Y0BW_XF_FILTER .
+  methods GET_XF_PAR_VALS
+    importing
+      !I_FILTER_USE type Y0XF_FILTER_USE
+      !I_FILTER_NAME type Y0XF_FILTER_NAME optional
+    exporting
+      value(E_TABLE) type TT_Y0BW_XF_PAR_VALS .
+protected section.
+private section.
+
+  types TS_NODE type RSSHNODENAME .
+  types:
+    tt_buffer_filters type standard table of y0bw_xf_filter .
+  types:
+    tt_buffer_par_vals type standard table of y0bw_xf_par_vals .
+  types:
+    begin of ts_log_get_xf_filters,
+      filter_use          type y0xf_filter_use,
+      filter_name         type y0xf_filter_name,
+      explode_hierarchies type boolean,
+      table               type tt_filter_ranges,
+    end of ts_log_get_xf_filters .
+  types:
+    tt_log_get_xf_filters type hashed table of ts_log_get_xf_filters
+    with unique key filter_use filter_name explode_hierarchies .
+  types:
+    begin of ts_log_explode_hierarchy,
+      node   type rsshnodename,
+      hienm  type rshienm,
+      iobjnm type rsiobjnm,
+      nodes  type ref to data,
+    end of ts_log_explode_hierarchy .
+  types:
+    tt_log_explode_hierarchy type hashed table of ts_log_explode_hierarchy
+  with unique key node hienm iobjnm .
+
+  class-data INSTANCE type ref to Y0BW_CL_XF_FILTERS .
+  data BUFFER_FILTERS type TT_BUFFER_FILTERS .
+  data BUFFER_PAR_VALS type TT_BUFFER_PAR_VALS .
+  data LOG_GET_XF_FILTERS type TT_LOG_GET_XF_FILTERS .
+  data LOG_EXPLODE_HIERARCHY type TT_LOG_EXPLODE_HIERARCHY .
+
+  methods CONSTRUCTOR .
+  class-methods LOAD_UNBUFFERED
+    exporting
+      !E_BUFFER_FILTERS type TT_BUFFER_FILTERS
+      !E_BUFFER_PAR_VALS type TT_BUFFER_PAR_VALS .
+ENDCLASS.
+
+
+
+CLASS Y0BW_CL_XF_FILTERS IMPLEMENTATION.
+
+
+method check_record.
+
+  data: lt_rec type y0bw_cl_xf_vld_generic=>tt_record_table,
+        lt_filter  type tt_y0bw_xf_filter,
+        l_t_filter_ranges type y0bw_cl_xf_vld_filter=>tt_filter_ranges,
+        lv_infoobject_value type natxt.
+
+  field-symbols:
+        <fs_filter>  type line of tt_y0bw_xf_filter.
+  field-symbols: <fs_filter_range> type line of y0bw_cl_xf_vld_filter=>tt_filter_ranges.
+  field-symbols: <fs_rec> type line of y0bw_cl_xf_vld_generic=>tt_record_table.
+
+  y0bw_cl_xf_vld_generic=>record2table(
+  exporting
+    record = c_s_rec
+    i_trans_fieldnm = i_trans_fieldnm
+    importing
+      record_table = lt_rec ).
+
+  me->check_rectab(
+  exporting
+    i_filter_use = i_filter_use
+    i_filter_name = i_filter_name
+    i_rectab = lt_rec
+    importing
+      e_result = e_result ).
+
+endmethod.
+
+
+method CHECK_RECTAB.
+
+  data: lt_rec type y0bw_cl_xf_vld_generic=>tt_record_table,
+        lt_filter  type tt_y0bw_xf_filter,
+        l_t_filter_ranges type y0bw_cl_xf_vld_filter=>tt_filter_ranges,
+        lv_infoobject_value type natxt.
+
+  field-symbols:
+        <fs_filter>  type line of tt_y0bw_xf_filter.
+  field-symbols: <fs_filter_range> type line of y0bw_cl_xf_vld_filter=>tt_filter_ranges.
+  field-symbols: <fs_rec> type line of y0bw_cl_xf_vld_generic=>tt_record_table.
+
+  lt_rec = i_rectab.
+
+  me->get_xf_filters(
+  exporting
+    i_filter_use = i_filter_use
+    i_filter_name = i_filter_name
+    i_explode_hierarchies = abap_false
+    importing
+      e_table = lt_filter ).
+
+  loop at lt_filter assigning <fs_filter>.
+    me->get_filter_ranges(
+        exporting
+          i_filter_use = <fs_filter>-filter_use
+          i_filter_name = <fs_filter>-filter_name
+          i_explode_hierarchies = abap_true
+          importing
+            e_table = l_t_filter_ranges ).
+
+* Vergleiche den Record Table mit der Auflistung
+    e_result = abap_true.
+
+    loop at l_t_filter_ranges assigning <fs_filter_range>.
+      read table lt_rec assigning <fs_rec> with table key infoobject = <fs_filter_range>-iobjnm.
+
+      if sy-subrc = 0.
+        lv_infoobject_value = <fs_rec>-value.
+      else.
+        lv_infoobject_value = ':'. "InfoObjekt ist nicht im Datensatz vorhanden -> Prüfen nach Doppelpunkt (Aggregation).
+      endif.
+
+      if <fs_filter_range>-concatinated eq abap_true. "If the InfoObject is concatinated
+        y0bw_cl_xf_vld_generic=>calculate_concatinated_value(
+        exporting
+          i_iobjnm = <fs_filter_range>-iobjnm
+          i_record_table = lt_rec
+          receiving
+          r_value = lv_infoobject_value
+          ).
+
+      endif.
+*      " End define coumpounded value
+
+      "Eigentliche Prüfung
+      if lv_infoobject_value not in <fs_filter_range>-range.
+        e_result = abap_false.
+      endif.
+    endloop.
+    if e_result = abap_true.
+      exit. "Wenn ein Filter erfolgreich war, überspringe weitere Filter.
+    endif.
+  endloop.
+
+
+
+endmethod.
+
+
+method CONSTRUCTOR.
+*--------------------------------------------------------------------*
+* Load DB tables Y0BW_XF_FILTER and Y0BW_XF_PAR_VALS into
+* instance attribute (buffer)
+*--------------------------------------------------------------------*
+  call function 'Y0BC_WHEN_USED'.
+
+  y0bw_cl_xf_filters=>load_unbuffered(
+  importing
+    e_buffer_filters = me->buffer_filters
+    e_buffer_par_vals = me->buffer_par_vals ).
+
+endmethod.
+
+
+method get_filter_ranges.
+
+  data: lt_filter type tt_y0bw_xf_filter.
+  data: lt_range type y0bw_cl_xf_vld_filter=>tt_range.
+  data: ls_range like line of lt_range.
+  data: ls_table like line of e_table.
+  data: lv_concatinated type boolean.
+
+  field-symbols: <fs_filter> type line of tt_y0bw_xf_filter.
+  field-symbols: <fs_table> like line of e_table.
+  field-symbols: <fs_range> like line of lt_range.
+
+  data: ls_log_get_xf_filters like line of me->log_get_xf_filters.
+
+  field-symbols: <fs_log_get_xf_filters> like line of me->log_get_xf_filters.
+
+* Maybe we processed already that filter, look in the buffer table.
+  read table me->log_get_xf_filters with table key
+  filter_use = i_filter_use
+   filter_name = i_filter_name
+    explode_hierarchies = i_explode_hierarchies
+    assigning <fs_log_get_xf_filters>.
+
+  if sy-subrc = 0.
+    e_table = <fs_log_get_xf_filters>-table.
+    return.
+  endif.
+
+  me->get_xf_filters(
+  exporting
+    i_filter_use = i_filter_use
+    i_filter_name = i_filter_name
+    i_explode_hierarchies = i_explode_hierarchies
+    importing
+      e_table = lt_filter ).
+
+  loop at lt_filter assigning <fs_filter>.
+    clear ls_range.
+    "ls_range-iobjnm = <fs_filter>-iobjnm.
+    ls_range-sign   = <fs_filter>-sign.
+    ls_range-option = <fs_filter>-opt.
+    ls_range-low    = <fs_filter>-low.
+    ls_range-high   = <fs_filter>-high.
+    insert ls_range into table lt_range.
+
+    lv_concatinated = abap_false.
+    read table e_table assigning <fs_table> with table key iobjnm = <fs_filter>-iobjnm concatinated = lv_concatinated.
+    if sy-subrc = 0.
+* Falls ein Eintrag mit dem Range bereits exestiert, füge den Neuen hinzu.
+      loop at lt_range assigning <fs_range>.
+        insert <fs_range> into table <fs_table>-range.
+      endloop.
+    else.
+      ls_table-iobjnm = <fs_filter>-iobjnm.
+      ls_table-concatinated = lv_concatinated.
+      ls_table-range = lt_range.
+      insert ls_table into table e_table.
+    endif.
+    clear lt_range.
+  endloop. "at lt_filter ASSIGNING <fs_filter>.
+
+  ls_log_get_xf_filters-filter_use = i_filter_use.
+  ls_log_get_xf_filters-filter_name = i_filter_name.
+  ls_log_get_xf_filters-explode_hierarchies = i_explode_hierarchies.
+  ls_log_get_xf_filters-table = e_table.
+
+  insert ls_log_get_xf_filters into table me->log_get_xf_filters.
+
+endmethod.
+
+
+method get_instance.
+*--------------------------------------------------------------------*
+* If the instance of the class is bound, return it.
+* If it is not bound, create a new one and return it
+*--------------------------------------------------------------------*
+
+  if instance is not bound.
+    create object instance.
+  endif.
+
+  return = instance.
+
+
+endmethod.
+
+
+method get_xf_filters.
+  data: ls_buffer_filters type line of tt_buffer_filters.
+  data: rg_filter_use type range of y0xf_filter_use,
+        rs_filter_use like line of rg_filter_use,
+        rg_filter_name type range of y0xf_filter_name,
+        rs_filter_name like line of rg_filter_name,
+
+        lt_nodes type tt_node.
+
+  field-symbols: <fs_buffer_filters> type line of tt_buffer_filters,
+                 <fs_t_buffer_filters> type tt_buffer_filters,
+                 <fs_node> type ts_node.
+
+
+* 2. Create ranges for i_filter_use and i_rule_type
+  rs_filter_use-sign = 'I'.
+  rs_filter_name-sign = 'I'.
+  rs_filter_use-option = 'EQ'.
+  rs_filter_name-option = 'EQ'.
+  rs_filter_use-low = i_filter_use.
+  rs_filter_name-low = i_filter_name.
+  append rs_filter_use to rg_filter_use.
+  if i_filter_name is not INITIAL.
+  append rs_filter_name to rg_filter_name.
+  endif.
+
+* 3. Loop at buffered table and add the result into returning table
+  loop at me->buffer_filters into ls_buffer_filters
+    where filter_use in rg_filter_use and filter_name in rg_filter_name.
+* 3.5 If the parameter i_explode_hierarchies is true,
+*    then execute the method _explode_hierarchy
+    if i_explode_hierarchies eq abap_true and ls_buffer_filters-hienm is not INITIAL.
+      me->_explode_hierarchy(
+      exporting
+        i_hienm = ls_buffer_filters-hienm
+        i_iobjnm = ls_buffer_filters-iobjnm
+        i_node = ls_buffer_filters-low
+        importing
+          e_nodes = lt_nodes ).
+* 3.6 Loop at range and generate a record of table Y0BW_XF_FILTER
+      loop at lt_nodes ASSIGNING <fs_node>.
+        ls_buffer_filters-low = <fs_node>.
+        clear ls_buffer_filters-high.
+        append ls_buffer_filters to e_table.
+        ENDLOOP.
+        else.
+          append ls_buffer_filters to e_table.
+      endif. "i_explode_hierarchies eq abap_true and <fs_buffer_filters>-hienm is not INITIAL.
+  endloop. "at me->buffer_filters assigning <fs_buffer_filters> where filter_use in rg_filter_use and filter_name in rg_filter_name.
+
+endmethod.
+
+
+method GET_XF_PAR_VALS.
+  data: rg_filter_use type range of y0xf_filter_use,
+        rs_filter_use like line of rg_filter_use,
+        rg_filter_name type range of y0xf_filter_name,
+        rs_filter_name like line of rg_filter_name.
+  data: ls_buffer_par_vals type line of tt_buffer_par_vals.
+
+  rs_filter_use-sign = 'I'.
+  rs_filter_name-sign = 'I'.
+  rs_filter_use-option = 'EQ'.
+  rs_filter_name-option = 'EQ'.
+  rs_filter_use-low = i_filter_use.
+  rs_filter_name-low = i_filter_name.
+  append rs_filter_use to rg_filter_use.
+  if i_filter_name is not INITIAL.
+  append rs_filter_name to rg_filter_name.
+  endif.
+
+  loop at me->buffer_par_vals into ls_buffer_par_vals
+    where filter_use in rg_filter_use and filter_name in rg_filter_name.
+    append ls_buffer_par_vals to e_table.
+    ENDLOOP.
+endmethod.
+
+
+method LOAD_UNBUFFERED.
+  select * from Y0BW_XF_FILTER into table e_buffer_filters.
+  select * from Y0BW_XF_PAR_VALS into table e_buffer_par_vals.
+endmethod.
+
+
+method _explode_hierarchy.
+  data: ls_log_explode_hierarchy type ts_log_explode_hierarchy,
+        l_cl_hieclass type ref to y0bw_cl_xf_readhier,
+        l_t_nodes type y0bi_tt_vcrhiecust,
+        l_s_node type ts_node.
+  field-symbols: <fs_nodes> type tt_node,
+                 <fs_node> like line of l_t_nodes.
+
+* Look in protocol if a request with the same parameters was logged.
+* If yes get the result set from protocol
+
+  read table me->log_explode_hierarchy into ls_log_explode_hierarchy
+  with table key
+  hienm = i_hienm
+  iobjnm = i_iobjnm
+  node = i_node.
+  if sy-subrc = 0.
+    assign ls_log_explode_hierarchy-nodes->* to <fs_nodes>.
+    e_nodes[] = <fs_nodes>[].
+    return.
+  endif.
+
+* If not, use the method GET_ALL_CHILDREN_NODES of the class Y0BW_CL_XF_READHIER
+* and add these children into c_range
+  create object l_cl_hieclass
+    exporting
+      i_iobjnm  = i_iobjnm
+      i_hiename = i_hienm.
+  l_cl_hieclass->get_all_children_nodes(
+  exporting
+    i_nodename = i_node
+    changing
+      e_nodename = l_t_nodes ).
+
+  loop at l_t_nodes assigning <fs_node>.
+    l_s_node = <fs_node>-nodename.
+    insert l_s_node into table e_nodes.
+  endloop.
+
+ls_log_explode_hierarchy-hienm = i_hienm.
+ls_log_explode_hierarchy-iobjnm = i_iobjnm.
+ls_log_explode_hierarchy-node = i_node.
+
+create data ls_log_explode_hierarchy-nodes type tt_node.
+assign ls_log_explode_hierarchy-nodes->* to <fs_nodes>.
+<fs_nodes>[] = e_nodes[].
+insert ls_log_explode_hierarchy into table me->log_explode_hierarchy.
+
+endmethod.
+ENDCLASS.
