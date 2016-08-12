@@ -1,0 +1,237 @@
+﻿class /BVCCSAP/CL_C1_CA_DOCPROPL definition
+  public
+  final
+  create private .
+
+public section.
+*"* public components of class /BVCCSAP/CL_C1_CA_DOCPROPL
+*"* do not include other source files here!!!
+
+  types:
+    begin of ty_s_wa ,
+        objvers    type  rsobjvers,
+        objstat    type  rsobjstat,
+        owner      type  rsowner,
+        timestmp   type  rstimestmp,
+        sourcetype type  rstlogo,
+        sourcename type  sobj_name,
+        targettype type  rstlogo,
+        targetname type  sobj_name,
+      end of ty_s_wa .
+  types:
+    ty_t_wa type standard table of ty_s_wa .
+  types:
+    begin of ty_s_additional_fields,
+        calday   type /bi0/oicalday,
+        tctsysid type /bi0/oitctsysid,
+      end of ty_s_additional_fields .
+
+  methods GET_PL_USAGE
+    exporting
+      value(E_T_RESULT) type TY_T_WA .
+  methods GET_DATASOURCE
+    importing
+      !I_V_SRC type SOBJ_NAME
+    exporting
+      !E_T_RESULT type TY_T_WA .
+  methods GET_NEXT_IPROVS
+    importing
+      !I_V_SRC type SOBJ_NAME
+    exporting
+      !E_T_RESULT type TY_T_WA .
+  class-methods GET_INSTANCE
+    returning
+      value(RETURN) type ref to /BVCCSAP/CL_C1_CA_DOCPROPL .
+protected section.
+*"* protected components of class /BVCCSAP/CL_C1_CA_DOCPROPL
+*"* do not include other source files here!!!
+private section.
+*"* private components of class /BVCCSAP/CL_C1_CA_DOCPROPL
+*"* do not include other source files here!!!
+
+  data T_RSTRAN type TY_T_WA .
+  class-data L_R_INSTANCE type ref to /BVCCSAP/CL_C1_CA_DOCPROPL .
+
+  methods CONSTRUCTOR .
+  methods NAVIGATE_DOWNWARDS
+    importing
+      !I_V_SRC type SOBJ_NAME
+    exporting
+      !E_T_RESULT type TY_T_WA .
+  methods NAVIGATE_UPWARDS
+    importing
+      !I_V_SRC type SOBJ_NAME
+    exporting
+      !E_T_RESULT type TY_T_WA .
+ENDCLASS.
+
+
+
+CLASS /BVCCSAP/CL_C1_CA_DOCPROPL IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method /BVCCSAP/CL_C1_CA_DOCPROPL->CONSTRUCTOR
+* +-------------------------------------------------------------------------------------------------+
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method CONSTRUCTOR.
+  select sourcetype sourcename targettype targetname objstat timestmp owner
+from rstran into corresponding fields of table me->t_rstran where objvers = 'A'.
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method /BVCCSAP/CL_C1_CA_DOCPROPL->GET_DATASOURCE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_V_SRC                        TYPE        SOBJ_NAME
+* | [<---] E_T_RESULT                     TYPE        TY_T_WA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method GET_DATASOURCE.
+
+  field-symbols: <fs_rstran> type ty_s_wa.
+  field-symbols: <fs_temp> type ty_s_wa.
+  field-symbols: <fs_temp2> type ty_s_wa.
+  data: lt_temp1 type ty_t_wa.
+  data: lt_temp2 type ty_t_wa.
+
+  clear lt_temp1.
+  CALL METHOD me->navigate_downwards
+    EXPORTING
+      i_v_src    = i_v_src
+    IMPORTING
+      e_t_result = lt_temp1.
+
+  loop at lt_temp1 assigning <fs_temp>.
+    if <fs_temp>-sourcetype eq 'RSDS'." or <fs_temp>-targettype eq 'CUBE'.
+      append <fs_temp> to e_t_result.
+    else.
+      clear lt_temp2.
+      CALL METHOD me->get_datasource
+        EXPORTING
+          i_v_src    = <fs_temp>-sourcename
+        IMPORTING
+          e_t_result = lt_temp2.
+      loop at lt_temp2 assigning <fs_temp2>.
+        "<fs_temp2>-sourcename = <fs_temp>-sourcename.
+        "<fs_temp2>-sourcetype = <fs_temp>-sourcetype.
+        append <fs_temp2> to e_t_result.
+      endloop.
+    endif.
+  endloop.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method /BVCCSAP/CL_C1_CA_DOCPROPL=>GET_INSTANCE
+* +-------------------------------------------------------------------------------------------------+
+* | [<-()] RETURN                         TYPE REF TO /BVCCSAP/CL_C1_CA_DOCPROPL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method GET_INSTANCE.
+  if l_r_instance is not bound.
+    CREATE OBJECT l_r_instance.
+  endif.
+
+  return = l_r_instance.
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method /BVCCSAP/CL_C1_CA_DOCPROPL->GET_NEXT_IPROVS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_V_SRC                        TYPE        SOBJ_NAME
+* | [<---] E_T_RESULT                     TYPE        TY_T_WA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method GET_NEXT_IPROVS.
+
+  field-symbols: <fs_rstran> type ty_s_wa.
+  field-symbols: <fs_temp> type ty_s_wa.
+  field-symbols: <fs_temp2> type ty_s_wa.
+  data: lt_temp1 type ty_t_wa.
+  data: lt_temp2 type ty_t_wa.
+
+  clear lt_temp1.
+  CALL METHOD me->navigate_upwards
+    EXPORTING
+      i_v_src    = i_v_src
+    IMPORTING
+      e_t_result = lt_temp1.
+
+  loop at lt_temp1 assigning <fs_temp>.
+    if <fs_temp>-targettype eq 'ODSO' or <fs_temp>-targettype eq 'CUBE'.
+      append <fs_temp> to e_t_result.
+    else.
+      clear lt_temp2.
+      CALL METHOD me->get_next_iprovs
+        EXPORTING
+          i_v_src    = <fs_temp>-targetname
+        IMPORTING
+          e_t_result = lt_temp2.
+      loop at lt_temp2 assigning <fs_temp2>.
+        <fs_temp2>-sourcename = <fs_temp>-sourcename.
+        <fs_temp2>-sourcetype = <fs_temp>-sourcetype.
+        append <fs_temp2> to e_t_result.
+      endloop.
+    endif.
+  endloop.
+
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method /BVCCSAP/CL_C1_CA_DOCPROPL->GET_PL_USAGE
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] E_T_RESULT                     TYPE        TY_T_WA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method GET_PL_USAGE.
+  field-symbols: <fs_rstran> type me->ty_s_wa.
+  data: l_t_temp type me->ty_t_wa.
+
+  loop at me->t_rstran assigning <fs_rstran> where ( sourcetype = 'ODSO' ) and sourcename cp 'P*'.
+    CALL METHOD me->get_next_iprovs
+      EXPORTING
+        i_v_src    = <fs_rstran>-sourcename
+      IMPORTING
+        e_t_result = l_t_temp.
+    append lines of l_t_temp to e_t_result.
+  endloop.
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method /BVCCSAP/CL_C1_CA_DOCPROPL->NAVIGATE_DOWNWARDS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_V_SRC                        TYPE        SOBJ_NAME
+* | [<---] E_T_RESULT                     TYPE        TY_T_WA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method NAVIGATE_DOWNWARDS.
+  field-symbols: <fs_rstran> type ty_s_wa.
+  field-symbols: <fs_temp> type ty_s_wa.
+  data: lt_temp type ty_t_wa.
+
+  loop at me->t_rstran assigning <fs_rstran> where targetname eq i_v_src.
+    "<fs_temp>-sourcename = <fs_rstran>-sourcename.
+    "<fs_temp>-sourcetype = <fs_rstran>-sourcetype.
+    append <fs_rstran> to e_t_result.
+  endloop.
+endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method /BVCCSAP/CL_C1_CA_DOCPROPL->NAVIGATE_UPWARDS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] I_V_SRC                        TYPE        SOBJ_NAME
+* | [<---] E_T_RESULT                     TYPE        TY_T_WA
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+method NAVIGATE_UPWARDS.
+  field-symbols: <fs_rstran> type ty_s_wa.
+  field-symbols: <fs_temp> type ty_s_wa.
+  data: lt_temp type ty_t_wa.
+
+  loop at me->t_rstran assigning <fs_rstran> where sourcename eq i_v_src.
+    "<fs_temp>-sourcename = <fs_rstran>-sourcename.
+    "<fs_temp>-sourcetype = <fs_rstran>-sourcetype.
+    append <fs_rstran> to e_t_result.
+  endloop.
+endmethod.
+ENDCLASS.
